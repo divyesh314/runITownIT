@@ -13,7 +13,7 @@ running app
 Built for a bootstrapped founder: leverages free/open-source tools to launch an MVP without upfront costs.
 
 - **Repo Structure** (High-Level Folders for Future Code):
-  - `/docs`: Documentation, wireframes, user stories.
+  - `/docs`: Documentation, wireframes, user stories. 
   - `/tasks`: Markdown files for categorized task boards (e.g., `crypto-tasks.md`, `frontend-tasks.md`).
   - `/design`: Figma exports, route maps.
   - `/roadmap`: Milestones in issues.
