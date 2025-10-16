@@ -1,15 +1,6 @@
 ## Updated Task Breakdown for RunOwn GitHub Repo
 
-To make development smoother, I've refined the task list based on our chosen stack: **React (for frontend/mobile via React Native/Next.js)**, **Ruby on Rails (backend/API)**, and **Docker (for containerization and consistent deploys)**. This keeps things modular—assign tasks to categories, use GitHub Projects for a Kanban board (To Do → In Progress → Done), and create Issues for each subtask with labels like `good-first-issue` or `blocker`.
 
-Add this as a new section in your `README.md`, or create a `/tasks/README.md` file. Each category links to a dedicated `.md` file (e.g., `tasks/frontend-tasks.md`) where you can expand with details, assignees, and due dates. Use checkboxes `[ ]` for progress tracking.
-
-### Overall Repo Setup (Do This First)
-- [ ] Create GitHub Project board: Columns for To Do, In Progress, Done, Blocked.
-- [ ] Add labels: `frontend`, `backend`, `docker`, `blockchain`, `priority-high`, `needs-review`.
-- [ ] Set up main branches: `main` (production), `develop` (staging).
-- [ ] Add `.gitignore` for Rails/React/Docker (node_modules, tmp, Docker images).
-- [ ] Write CONTRIBUTING.md: Guidelines for PRs, e.g., "Branch as `feat/category-task`".
 
 ### 1. Backend (Rails)
 Focus: API for users, territories, challenges, and reward logic. Use Docker for local dev.
