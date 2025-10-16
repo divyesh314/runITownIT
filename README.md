@@ -1,125 +1,81 @@
-# runITownIT
-running app
+## Updated Task Breakdown for RunOwn GitHub Repo
 
-# RunOwn: Gamified Running App with Virtual Ownership & Crypto Rewards
+To make development smoother, I've refined the task list based on our chosen stack: **React (for frontend/mobile via React Native/Next.js)**, **Ruby on Rails (backend/API)**, and **Docker (for containerization and consistent deploys)**. This keeps things modular—assign tasks to categories, use GitHub Projects for a Kanban board (To Do → In Progress → Done), and create Issues for each subtask with labels like `good-first-issue` or `blocker`.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Issues](https://img.shields.io/github/issues/username/runown-app.svg)](https://github.com/username/runown-app/issues)
-[![Pull Requests](https://img.shields.io/github/issues-pr/username/runown-app.svg)](https://github.com/username/runown-app/pulls)
+Add this as a new section in your `README.md`, or create a `/tasks/README.md` file. Each category links to a dedicated `.md` file (e.g., `tasks/frontend-tasks.md`) where you can expand with details, assignees, and due dates. Use checkboxes `[ ]` for progress tracking.
 
-## Overview
-**RunOwn** is an open-source project for a mobile/web running platform that combines Strava-like tracking with virtual territory ownership and blockchain-based crypto rewards. Users claim real-world running routes, compete to own them, and earn mined cryptocurrency for wins. This repo serves as the central hub for planning, task tracking, and collaboration—**no code yet**, but structured for rapid development.
+### Overall Repo Setup (Do This First)
+- [ ] Create GitHub Project board: Columns for To Do, In Progress, Done, Blocked.
+- [ ] Add labels: `frontend`, `backend`, `docker`, `blockchain`, `priority-high`, `needs-review`.
+- [ ] Set up main branches: `main` (production), `develop` (staging).
+- [ ] Add `.gitignore` for Rails/React/Docker (node_modules, tmp, Docker images).
+- [ ] Write CONTRIBUTING.md: Guidelines for PRs, e.g., "Branch as `feat/category-task`".
 
-Built for a bootstrapped founder: leverages free/open-source tools to launch an MVP without upfront costs.
+### 1. Backend (Rails)
+Focus: API for users, territories, challenges, and reward logic. Use Docker for local dev.
+- [ ] Set up Rails app: `rails new runown-backend --database=postgresql` (add gems: devise for auth, actioncable for real-time, web3-eth for blockchain).
+- [ ] Configure Docker: Create `Dockerfile` and `docker-compose.yml` for Rails + Postgres (e.g., `services: db, web`).
+- [ ] Models/Controllers: User, Territory (with GPS fields), Run, Challenge.
+- [ ] API Endpoints: `/api/claim-territory`, `/api/challenge/:id`, `/api/verify-run` (GPS validation).
+- [ ] Real-time: Integrate ActionCable for live notifications (e.g., "Challenge accepted!").
+- [ ] Blockchain Hooks: Add service to call Polygon contract for minting RunCoins on win.
+- [ ] Seed Data: Fake territories/routes for testing.
 
-- **Repo Structure** (High-Level Folders for Future Code):
-  - `/docs`: Documentation, wireframes, user stories. 
-  - `/tasks`: Markdown files for categorized task boards (e.g., `crypto-tasks.md`, `frontend-tasks.md`).
-  - `/design`: Figma exports, route maps.
-  - `/roadmap`: Milestones in issues.
-  - `README.md`: This file.
+### 2. Frontend (React)
+Focus: UI for maps, runs, and wallet integration. React Native for app, Next.js for web.
+- [ ] Set up React Native: `npx create-expo-app runown-app` (add deps: @react-navigation, expo-location for GPS).
+- [ ] Docker for Frontend: Optional `Dockerfile` for Next.js web build (or use native for mobile).
+- [ ] Core Screens: Login, Map View (territories with ownership badges), Run Tracker, Challenge Modal.
+- [ ] GPS Integration: Use Expo Location for tracking; display routes on Leaflet map.
+- [ ] Social Features: Leaderboards (fetch from Rails API), notifications.
+- [ ] Wallet Connect: Integrate Ethers.js/MetaMask for RunCoin display/claims.
+- [ ] Responsive Web: Set up Next.js project, mirror app screens.
 
-Fork, star, and contribute! Track progress via [GitHub Projects](https://github.com/username/runown-app/projects/1) (set up a Kanban board for tasks).
+### 3. Blockchain Integration
+Focus: ERC-20 RunCoin on Polygon; integrate with Rails.
+- [ ] Design Contract: Use OpenZeppelin wizard for ERC-20 (add mint/transfer for rewards).
+- [ ] Deploy Testnet: Remix IDE to Mumbai testnet; save address in Rails env vars.
+- [ ] Rails Integration: Gem/service to call contract (e.g., `RunCoin.mint(winner_address, amount)`).
+- [ ] Oracle for Verification: Off-chain GPS data to on-chain events (use Chainlink if needed, or simple HTTP).
+- [ ] NFT Extension: Basic territory ownership as ERC-721 (post-MVP).
 
-## Features
-- **Virtual Territory Ownership**: GPS-mapped routes users claim and defend.
-- **Competitive Challenges**: Head-to-head runs with metrics-based overtakes.
-- **Crypto Rewards**: Opt-in device mining during runs; winners get pooled RunCoins (ERC-20 tokens).
-- **Social Integration**: Leaderboards, clans, live notifications.
+### 4. Crypto Rewards & Mining
+Focus: Opt-in mining during runs; pool to treasury, distribute via ERC-20.
+- [ ] Mining Lib: Add JS CryptoNight to React Native (background task on run start).
+- [ ] Throttling Logic: Limit to 20% CPU; estimate earnings preview.
+- [ ] Treasury Wallet: Multi-sig setup; Rails cron job to pool mined BTC/ETH.
+- [ ] Reward Flow: On win, swap pool to RunCoins, transfer via contract.
+- [ ] User Dashboard: Show earnings, opt-in toggle.
 
-## Tech Stack
-- **Frontend**: React Native (app) + Next.js (web).
-- **Backend**: Firebase/Supabase (auth, DB, real-time).
-- **Blockchain**: Polygon (tokens), Web3.js (integration), open-source mining libs.
-- **Mapping**: OpenStreetMap + GPS APIs.
-- **Tools**: GitHub for collab, Figma for design.
-
-## Getting Started (Pre-Code Phase)
-1. **Clone/Fork**: `git clone https://github.com/username/runown-app.git`
-2. **Setup**: No code yet—focus on tasks below. Use GitHub Issues for discussions.
-3. **Contribute**: Pick a task, create a branch (e.g., `feat/crypto-wallet`), add your work to `/docs` or tasks files, and open a PR.
-4. **Local Dev (Future)**: Once code lands, `npm install` in subfolders; env vars for API keys.
-
-## Task Breakdown
-Tasks are divided into categories for modular development. Each category has a dedicated Markdown file in `/tasks/` with detailed subtasks, assignees (TBD), and status (To Do/In Progress/Done). Use GitHub Issues to claim and track.
-
-### 1. Blockchain Integration
-Focus: Smart contracts for ownership, token minting, and on-chain verification.
-- [ ] Design ERC-20 RunCoin contract (Polygon deployment).
-- [ ] Implement territory NFT mechanics (claim/transfer via runs).
-- [ ] Set up oracle for GPS data off-chain verification.
-- [ ] Audit contract security (use free tools like Slither).
-- [ ] Integrate with backend for event emissions (e.g., challenge won → token transfer).
-
-### 2. Crypto Rewards & Mining
-Focus: Device-based mining and reward distribution—zero-cost entry.
-- [ ] Research mobile-friendly PoW mining lib (e.g., CryptoNight JS).
-- [ ] Build opt-in mining script (throttle for battery; run during GPS sessions).
-- [ ] Create reward criteria logic (e.g., streak wins → treasury split).
-- [ ] Pool mined BTC/ETH into treasury wallet.
-- [ ] User wallet integration (MetaMask/Phantom connect).
-- [ ] Redemption flow: Swap RunCoins for crypto or in-app perks.
-
-### 3. Frontend (App & Web)
-Focus: User-facing UI/UX for runs, maps, and social features.
-- [ ] Wireframe core screens (login, map view, challenge modal) in Figma.
-- [ ] Set up React Native project skeleton.
-- [ ] Implement GPS tracking component (with start/stop run).
-- [ ] Build territory map view (interactive routes with ownership badges).
-- [ ] Design challenge UI (notifications, leaderboards).
-- [ ] Add wallet connect button and reward display.
-- [ ] Responsive web version with Next.js.
-
-### 4. Backend & API
-Focus: Serverless core for data sync and logic.
-- [ ] Setup Firebase project (auth, Firestore for user/routes data).
-- [ ] API endpoints: `/claim-territory`, `/challenge-run`, `/verify-metrics`.
-- [ ] Real-time subscriptions (e.g., live run updates via WebSockets).
-- [ ] Data models: Users, Territories, Runs, Challenges.
-- [ ] Integrate mining webhook for reward triggers.
-- [ ] Basic analytics (run stats aggregation).
-
-### 5. DevOps & Infrastructure
-Focus: Deployment, security, and scaling.
-- [ ] CI/CD pipeline with GitHub Actions (lint/test/deploy).
-- [ ] Environment config (dotenv for keys).
-- [ ] Security audit: GPS spoofing prevention, rate limiting.
-- [ ] Hosting: Vercel for web, Expo for app builds.
-- [ ] Monitoring: Free Sentry for errors.
+### 5. DevOps & Infrastructure (Docker-Centric)
+Focus: Containerize everything for easy deploys.
+- [ ] Dockerize Full Stack: `docker-compose up` for local (Rails, React dev server, Postgres).
+- [ ] CI/CD: GitHub Actions workflow for build/test/deploy (lint Rails code, test React components).
+- [ ] Deploy: Render/Heroku for Rails (Docker support); Expo for mobile builds; Vercel for Next.js.
+- [ ] Env/Sec: Docker secrets for API keys (Polygon RPC, wallet private keys).
+- [ ] Monitoring: Basic logs with Sentry free tier.
 
 ### 6. Testing & QA
-Focus: Ensure reliability from day one.
-- [ ] Unit tests for reward logic (Jest).
-- [ ] E2E tests for run flows (Detox for mobile).
-- [ ] Blockchain testnet simulations (Ganache).
-- [ ] User testing plan (beta runners via TestFlight).
-- [ ] Accessibility checks (maps for color-blind).
+Focus: Ensure GPS accuracy, blockchain txns, and mining safety.
+- [ ] Unit Tests: RSpec for Rails models/endpoints; Jest for React components.
+- [ ] Integration: Test full flow (claim → run → win → mint) with Docker mocks.
+- [ ] E2E: Cypress for web; Detox for React Native (simulate GPS).
+- [ ] Security: Audit for spoofing (e.g., mock GPS detection); contract audit with Slither.
+- [ ] Beta Testing: 50 testers; track bugs via GitHub Issues.
 
 ### 7. Marketing & Community
-Focus: Launch hype without budget.
-- [ ] Draft landing page copy and social teasers.
-- [ ] Community guidelines for contributors.
-- [ ] Reddit/Twitter outreach plan (r/running, #Web3Fitness).
-- [ ] Airdrop strategy for early testers.
-- [ ] Analytics for user acquisition (Google Analytics free tier).
+Focus: Build hype pre-launch.
+- [ ] Landing Page: Simple Next.js site with waitlist signup.
+- [ ] Social: Post teasers on Reddit r/running, X #Web3Fitness.
+- [ ] Docs: Update README with setup instructions (e.g., "docker-compose up").
+- [ ] Airdrop: Early testers get test RunCoins.
+- [ ] Analytics: Google Analytics for signups; track retention.
 
-## Roadmap
-- **Phase 1 (Weeks 1-4)**: Core tasks in Blockchain, Crypto, and Backend. MVP: Claim a route.
-- **Phase 2 (Weeks 5-8)**: Frontend polish + Testing. Beta app release.
-- **Phase 3 (Ongoing)**: Full features, marketing push, mainnet launch.
+### Roadmap Milestones
+- **Week 1**: Backend setup + Docker local env running.
+- **Weeks 2-3**: Frontend basics + API integration.
+- **Weeks 4-5**: Blockchain + mining prototype.
+- **Week 6**: Testing + beta deploy.
+- **Ongoing**: Marketing push for 1K users.
 
-## Contributing
-1. Read the [Code of Conduct](CODE_OF_CONDUCT.md).
-2. Find a task in the categories above or create an Issue.
-3. Branch off `main`: `git checkout -b category/task-name`.
-4. Commit often, PR with details.
-5. No code yet? Add docs, designs, or research to `/docs`!
-
-Questions? Open an Issue or DM on X (@runownapp).
-
-## License
-MIT License - free to fork and build on.
-
----
-
-*Built with ❤️ by a broke founder turning sweat into code. Let's own the run!*
+Track progress by closing Issues—aim for daily commits. If a task blocks you, label it and ping in Discussions. This list is flexible; fork it into your repo and tweak. Ready to tackle Backend first? Let's knock out that Rails setup!
