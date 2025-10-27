@@ -1,8 +1,5 @@
 Rails.application.routes.draw do
-  namespace :api do
-    resources :users, only: [:create, :update, :show, :index, :destroy]
-    resources :territories, only: [:create, :claim, :index]
-    resources :runs, only: [:start, :verify, :index]
-    resources :challenges, only: [:create, :accept, :index]
-  end
+  devise_for :users  # If Devise added; skip if not yet
+  post '/api/territories/claim', to: 'territories#claim'  # Your claim hook
+  resources :territories, only: []  # Hide full CRUD for API security
 end

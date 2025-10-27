@@ -1,10 +1,5 @@
 class Territory < ApplicationRecord
-  validates :name, presence: true
-  validates :latitude, presence: true
-  validates :longitude, presence: true
-  validates :owner_id, presence: true
-
-  belongs_to :owner, class_name: 'User'
-
-  # Additional methods for ownership checks and territory logic can be added here
+  belongs_to :owner, class_name: 'User', optional: true  # Links to User; optional for unclaimed turfs
+  validates :name, presence: true  # Must have a name
+  validates :lat, :lng, presence: true  # GPS required
 end
