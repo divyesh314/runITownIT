@@ -1,0 +1,23 @@
+development:
+  adapter: postgresql
+  encoding: unicode
+  database: runown_development
+  pool: 5
+  username: your_username
+  password: your_password
+
+test:
+  adapter: postgresql
+  encoding: unicode
+  database: runown_test
+  pool: 5
+  username: your_username
+  password: your_password
+
+production:
+  adapter: postgresql
+  encoding: unicode
+  database: runown_production
+  pool: 5
+  username: <%= ENV['RUNOWN_DATABASE_USERNAME'] %>
+  password: <%= ENV['RUNOWN_DATABASE_PASSWORD'] %>

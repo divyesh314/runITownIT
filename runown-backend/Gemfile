@@ -1,0 +1,35 @@
+source 'https://rubygems.org'
+
+ruby '3.0.0'
+
+# Rails
+gem 'rails', '~> 6.1.0'
+
+# Database
+gem 'pg', '>= 0.18', '< 2.0'
+
+# Authentication
+gem 'devise'
+
+# Real-time features
+gem 'actioncable'
+
+# Blockchain integration
+gem 'web3-eth'
+
+# Testing
+group :development, :test do
+  gem 'rspec-rails'
+  gem 'factory_bot_rails'
+end
+
+group :development do
+  gem 'pry'
+end
+
+group :test do
+  gem 'capybara'
+  gem 'selenium-webdriver'
+end
+
+# Add any other gems you need below
