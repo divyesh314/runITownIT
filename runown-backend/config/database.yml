@@ -1,23 +1,20 @@
-development:
+default: &default
   adapter: postgresql
   encoding: unicode
+  pool: <%= ENV.fetch('RAILS_MAX_THREADS') { 5 } %>
+  host: <%= ENV.fetch('RUNOWN_DATABASE_HOST', 'localhost') %>
+  username: <%= ENV.fetch('RUNOWN_DATABASE_USERNAME', 'postgres') %>
+  password: <%= ENV.fetch('RUNOWN_DATABASE_PASSWORD', 'password') %>
+
+development:
+  <<: *default
   database: runown_development
-  pool: 5
-  username: your_username
-  password: your_password
 
 test:
-  adapter: postgresql
-  encoding: unicode
+  <<: *default
   database: runown_test
-  pool: 5
-  username: your_username
-  password: your_password
 
+# Production expects a full DATABASE_URL (Render, Docker, etc. all set this
+# for you) so it isn't tied to any one host/username/password.
 production:
-  adapter: postgresql
-  encoding: unicode
-  database: runown_production
-  pool: 5
-  username: <%= ENV['RUNOWN_DATABASE_USERNAME'] %>
-  password: <%= ENV['RUNOWN_DATABASE_PASSWORD'] %>
+  url: <%= ENV['DATABASE_URL'] %>

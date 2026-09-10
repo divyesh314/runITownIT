@@ -8,6 +8,26 @@
 
 ---
 
+## ✅ Current Implementation Status
+
+Everything below this section is the full product vision. Here's what
+actually exists in this repo today, kept honest so nobody (including future
+you) mistakes the pitch for the build:
+
+| Piece | Status |
+|---|---|
+| **Backend** (`runown-backend`) | ✅ Working Rails API: signup/login, claim a territory, start/verify a run against a GPS path, challenge + accept/decline/complete, leaderboard. Territories are circles (lat/lng + radius), not real H3 hexagons yet. |
+| **Mobile app** (`runown-app`) | ✅ Real Expo/React Native app: auth, a territory list with claim + challenge, a live run tracker using the phone's GPS, leaderboard, profile with pending challenges. No pins-on-a-map view yet (needs a maps SDK + API key) - territories are a list. |
+| **Web dashboard** (`runown-web`) | ✅ Next.js pages: landing page with live stats, full territory table, leaderboard. Read-only - no login on the web yet. |
+| **RunCoin / crypto rewards** | ❌ Not built. No smart contracts, no wallet, no Polygon integration, no mining. Territory ownership is tracked as a plain database column - it changes hands, but nothing is minted, staked, or paid out. |
+| **Opt-in mining** | ❌ Not built, and not planned by whoever's working on this next without a hard look first - background crypto mining bundled into a consumer app (even opt-in) is the exact pattern app stores and security researchers flag as cryptojacking. Worth reconsidering before building it. |
+| **H3 hex grid / PostGIS** | ❌ Not built. Claiming uses simple circle-radius math (see `GpsValidator`/`Territory::CLAIM_RADIUS_METERS`), which works for a prototype but doesn't scale to a real city grid. |
+| **CI (`.github/workflows`)** | ❌ Not built. |
+
+See each folder's own README for what it does and how to run it.
+
+---
+
 ## 🧠 What Is RunOwn?
 
 RunOwn is a **location-based fitness app** that turns your runs into territorial conquests.
@@ -227,12 +247,13 @@ Here is exactly what happens step by step when a user claims a territory:
 
 ## 🚀 Getting Started (Local Dev)
 
+This is what's actually needed to run the three real pieces today - no
+MetaMask, no testnet, no contracts (see Current Implementation Status above).
+
 ### Prerequisites
-- Docker + Docker Compose
+- Docker + Docker Compose (or a local PostgreSQL install)
 - Node.js 18+
-- Ruby 3.2+
-- Expo CLI (`npm install -g expo-cli`)
-- MetaMask browser extension
+- Ruby 3.3+
 
 ### 1. Clone the repo
 ```bash
@@ -243,32 +264,30 @@ cd runITownIT
 ### 2. Start the backend
 ```bash
 cd runown-backend
-cp .env.example .env          # Add your Polygon RPC URL + wallet keys
-docker-compose up --build     # Starts Rails + PostgreSQL
-docker-compose exec web rails db:create db:migrate db:seed
+cp .env.example .env
+bundle install
+bin/rails db:create db:migrate db:seed
+bin/rails server               # http://localhost:3000
 ```
+or with Docker: `docker compose up --build` (starts Postgres too), then
+`docker compose exec web bin/rails db:create db:migrate db:seed`.
 
 ### 3. Start the mobile app
 ```bash
 cd runown-app
 npm install
-npx expo start                # Scan QR with Expo Go app
+npx expo start                # Scan QR with Expo Go, or press i/a/w
 ```
 
 ### 4. Start the web dashboard
 ```bash
 cd runown-web
 npm install
+cp .env.local.example .env.local
 npm run dev                   # http://localhost:3000
 ```
 
-### 5. Deploy contracts (testnet)
-```bash
-cd contracts
-npm install
-npx hardhat run scripts/deploy.js --network mumbai
-# Copy contract address → paste into backend .env as RUNCOIN_CONTRACT_ADDRESS
-```
+See each folder's README for the full API surface and how each screen works.
 
 ---
 
@@ -287,18 +306,22 @@ npx hardhat run scripts/deploy.js --network mumbai
 ## 🧪 Testing
 
 ```bash
-# Backend (Rails)
+# Backend (Rails) - model + request specs for auth, claiming, running, challenges
 cd runown-backend
 bundle exec rspec
 
-# Frontend (React Native)
+# Mobile app - typecheck, lint, and a full bundle as a smoke test
 cd runown-app
-npm test
+npx tsc --noEmit && npx expo lint && npx expo export --platform web
 
-# Smart Contracts
-cd contracts
-npx hardhat test
+# Web dashboard - lint + production build
+cd runown-web
+npm run lint && npm run build
 ```
+
+(No Jest test suites are set up for the mobile app or web dashboard yet, and
+there's no `contracts/` project since no smart contracts exist - see Current
+Implementation Status above.)
 
 ---
 

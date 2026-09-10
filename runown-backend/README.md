@@ -1,98 +1,86 @@
 # RunOwn Backend
 
-## Overview
-RunOwn is a Rails-based backend application designed to support a fitness platform that integrates territory challenges, user management, and blockchain rewards. This README provides an overview of the project structure, setup instructions, and API documentation.
+A Rails 7 API-only backend for RunOwn: users sign up, claim map "territories"
+by physically running through them (verified from a recorded GPS path), and
+can challenge another player for a territory someone else already owns.
+
+Crypto/token rewards described in the top-level project README are **not**
+implemented here yet - this backend only handles accounts, territories,
+runs, and challenges.
 
 ## Project Structure
-- **app/**: Contains the main application code.
-  - **controllers/**: Manages the application logic and handles requests.
-    - `application_controller.rb`: Base controller for shared functionality.
-    - `users_controller.rb`: Manages user-related actions (create, update, delete).
-    - `territories_controller.rb`: Handles territory actions (create, claim, index).
-    - `runs_controller.rb`: Manages run actions (start, verify, index).
-    - `challenges_controller.rb`: Handles challenge actions (create, accept, index).
-  - **models/**: Represents the data and business logic.
-    - `user.rb`: User model with properties like name, email, and password.
-    - `territory.rb`: Territory model with properties like name and GPS coordinates.
-    - `run.rb`: Run model with properties like user_id, territory_id, and duration.
-    - `challenge.rb`: Challenge model with properties like challenger_id and status.
-  - **channels/**: Manages WebSocket connections for real-time features.
-    - **application_cable/**: Contains base classes for ActionCable channels.
-      - `channel.rb`: Base class for channels.
-      - `connection.rb`: Manages WebSocket connections.
+- `app/controllers/` - one controller per resource (`users`, `sessions`,
+  `territories`, `runs`, `challenges`), all under `/api`.
+- `app/models/` - `User`, `Territory`, `Run`, `Challenge`.
+- `app/services/gps_validator.rb` - turns a list of GPS points into a
+  distance and a yes/no "did this path pass through that territory?".
+  Territories are treated as circles (see `Territory::CLAIM_RADIUS_METERS`)
+  rather than real hex-grid polygons - good enough to prove the flow works
+  end-to-end without standing up PostGIS/H3.
+- `db/migrate/` - creates the four tables above.
+- `db/seeds.rb` - two sample users, an owned + an unclaimed territory, a
+  verified run, and a pending challenge.
+- `spec/` - RSpec model + request specs covering the claim/run/challenge logic.
 
-- **config/**: Configuration files for the application.
-  - `database.yml`: Database configuration for different environments.
-  - `routes.rb`: Defines the API routes for the application.
-  - `environment.rb`: Loads and initializes the Rails environment.
+## Setup
 
-- **db/**: Database-related files.
-  - **migrate/**: Contains migration files for database schema changes.
-  - `seeds.rb`: Populates the database with initial data.
+```bash
+bundle install
+cp .env.example .env        # then edit if your local Postgres needs different credentials
+bin/rails db:create db:migrate db:seed
+bin/rails server             # http://localhost:3000
+```
 
-- **Dockerfile**: Instructions for building the Docker image for the Rails application.
+Or with Docker (`docker-compose.yml` starts Postgres for you):
 
-- **docker-compose.yml**: Defines services for the application, including the Rails app and PostgreSQL database.
+```bash
+docker compose up --build
+```
 
-- **Gemfile**: Lists the Ruby gems required for the application.
+Run the test suite:
 
-- **Gemfile.lock**: Locks the versions of the gems specified in the Gemfile.
+```bash
+bundle exec rspec
+```
 
-## Setup Instructions
-1. **Clone the Repository**
-   ```bash
-   git clone <repository-url>
-   cd runown-backend
-   ```
+> Note: this was written and reviewed in a sandbox that could not reach
+> rubygems.org, so `bundle install` and the test suite have not actually been
+> executed here - please run the two commands above once you pull this down
+> to confirm everything installs and passes on your machine.
 
-2. **Install Dependencies**
-   ```bash
-   bundle install
-   ```
+## Auth
 
-3. **Configure Database**
-   Update `config/database.yml` with your database credentials.
+There's no HTML login page - it's a token-based API:
 
-4. **Run Migrations**
-   ```bash
-   rails db:create
-   rails db:migrate
-   ```
+1. `POST /api/signup` with `name`, `email`, `password` → returns the new
+   user and a `token`.
+2. `POST /api/login` with `email`, `password` → returns a `token`.
+3. Send `Authorization: Bearer <token>` on every other request.
 
-5. **Seed the Database**
-   ```bash
-   rails db:seed
-   ```
+## API
 
-6. **Start the Server**
-   ```bash
-   rails server
-   ```
-
-## API Documentation
-- **Users**
-  - `POST /api/users`: Create a new user.
-  - `GET /api/users/:id`: Retrieve user details.
-  - `PUT /api/users/:id`: Update user information.
-  - `DELETE /api/users/:id`: Delete a user.
-
-- **Territories**
-  - `POST /api/territories`: Create a new territory.
-  - `GET /api/territories`: List all territories.
-  - `POST /api/territories/claim`: Claim a territory.
-
-- **Runs**
-  - `POST /api/runs`: Start a new run.
-  - `GET /api/runs`: List all runs.
-  - `POST /api/runs/verify`: Verify a completed run.
-
-- **Challenges**
-  - `POST /api/challenges`: Create a new challenge.
-  - `POST /api/challenges/accept`: Accept a challenge.
-  - `GET /api/challenges`: List all challenges.
+| Method | Path | Auth? | Notes |
+|---|---|---|---|
+| POST | `/api/signup` | no | create an account |
+| POST | `/api/login` | no | get a token |
+| DELETE | `/api/logout` | yes | invalidates the current token |
+| GET | `/api/users/:id` | yes | |
+| PATCH | `/api/users/:id` | yes | only your own profile |
+| GET | `/api/leaderboard` | no | players ranked by territories owned |
+| GET | `/api/territories` | no | list every zone and its owner |
+| GET | `/api/territories/:id` | no | |
+| POST | `/api/territories` | yes | seed a new unclaimed zone at a lat/lng |
+| POST | `/api/territories/claim` | yes | `{ lat, lng, name? }` - claims the nearest zone if it's unclaimed, 409s if someone already owns it |
+| GET | `/api/runs` | yes | your run history |
+| POST | `/api/runs/start` | yes | `{ territory_id?, duration }` |
+| POST | `/api/runs/:id/verify` | yes | `{ gps_data: [{lat, lng}, ...] }` - verifies the path passed through the territory and, if unclaimed, hands over ownership |
+| POST | `/api/challenges` | yes | `{ territory_id }` - challenge the current owner |
+| POST | `/api/challenges/:id/accept` \| `/decline` | yes | owner only |
+| POST | `/api/challenges/:id/complete` | yes | `{ winner_id }` - transfers the territory to the winner |
 
 ## Contributing
-Contributions are welcome! Please open an issue or submit a pull request for any enhancements or bug fixes.
+Contributions are welcome! Please open an issue or submit a pull request for
+any enhancements or bug fixes.
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for details.

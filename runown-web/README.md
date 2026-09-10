@@ -1,36 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RunOwn (web dashboard)
 
-## Getting Started
+A read-only Next.js dashboard that mirrors the RunOwn app in the browser:
+landing page, the full territory list with owners, and the leaderboard.
+Server components fetch straight from `runown-backend`'s public GET
+endpoints - no login here (that's the mobile app's job for now), and no
+crypto/wallet pages (see the top-level README for why).
 
-First, run the development server:
+## Pages
+
+- `app/page.tsx` - landing page with live stats (territories claimed,
+  players) pulled from the API.
+- `app/territories/page.tsx` - table of every territory and its owner.
+- `app/leaderboard/page.tsx` - players ranked by territories owned.
+- `lib/api.ts` - the only place that talks to the backend; every call fails
+  soft (empty list + an "API not reachable" message in the UI) instead of
+  crashing the page if the backend isn't running.
+
+## Setup
 
 ```bash
+npm install
+cp .env.local.example .env.local   # then edit API_URL if your backend isn't on localhost:3000
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). Without the backend
+running you'll still see the page - just with empty tables and a note that
+the API couldn't be reached.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run lint
+npm run build
+```

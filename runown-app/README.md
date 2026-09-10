@@ -1,50 +1,53 @@
-# Welcome to your Expo app 👋
+# RunOwn (mobile)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+The React Native / Expo app: sign up, see the territory list, run to claim
+one, and challenge other owners. Talks to `runown-backend` over plain HTTP -
+no crypto wallet screens are built here (see the top-level README for why).
 
-## Get started
+## Screens
 
-1. Install dependencies
+- `app/(auth)/login.tsx`, `signup.tsx` - email/password auth against the
+  Rails API, token stored on-device with AsyncStorage.
+- `app/(tabs)/index.tsx` - **Map** tab. Lists every territory and its owner,
+  lets you challenge an owned one, and has a "claim the zone I'm standing
+  in" button that reads your current GPS position.
+- `app/(tabs)/run.tsx` - **Run** tab. Start/stop a run; while running it
+  records your GPS position every ~5s (`services/gps.ts`), then sends the
+  whole path to the backend to verify and (if you passed through an
+  unclaimed zone) claim it.
+- `app/(tabs)/leaderboard.tsx` - players ranked by territories owned.
+- `app/(tabs)/profile.tsx` - your stats, plus any pending challenges against
+  turf you own (accept/decline).
 
-   ```bash
-   npm install
-   ```
+`services/api.ts` is the one place that talks to the backend; `services/gps.ts`
+wraps `expo-location`; `services/geo.ts` has the same haversine-distance math
+used server-side, for the live distance/time readout during a run.
 
-2. Start the app
+> There's no visual map-with-pins view yet (that needs a maps SDK + API key)
+> - territories are shown as a plain list for now.
 
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Setup
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Point the app at your backend by editing `extra.apiUrl` in `app.json`
+(defaults to `http://localhost:3000/api`, which works for the iOS
+simulator; for a physical device or Android emulator use your computer's
+LAN IP or `10.0.2.2` instead of `localhost`).
 
-## Learn more
+```bash
+npx expo start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+Then open it in a [development build](https://docs.expo.dev/develop/development-builds/introduction/),
+an Android emulator, an iOS simulator, or [Expo Go](https://expo.dev/go).
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Useful checks while developing:
 
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+npx tsc --noEmit   # typecheck
+npx expo lint      # lint
+npx expo export --platform web   # bundles the whole app - good smoke test
+```

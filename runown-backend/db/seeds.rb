@@ -1,19 +1,46 @@
-# db/seeds.rb
+# Populates a local database with a couple of users, two territories (one
+# owned, one still up for grabs), a finished run, and a pending challenge -
+# enough to poke around the API or point the mobile app / web dashboard at.
+#
+#   bin/rails db:seed
 
-# This file is used to populate the database with initial data.
+alice = User.find_or_create_by!(email: 'alice@example.com') do |u|
+  u.name = 'Alice'
+  u.password = 'password123'
+end
 
-# Create sample users
-user1 = User.create(name: 'Alice', email: 'alice@example.com', password: 'password123')
-user2 = User.create(name: 'Bob', email: 'bob@example.com', password: 'password123')
+bob = User.find_or_create_by!(email: 'bob@example.com') do |u|
+  u.name = 'Bob'
+  u.password = 'password123'
+end
 
-# Create sample territories
-territory1 = Territory.create(name: 'Central Park', gps_latitude: 40.785091, gps_longitude: -73.968285, owner_id: user1.id)
-territory2 = Territory.create(name: 'Golden Gate Park', gps_latitude: 37.769420, gps_longitude: -122.486213, owner_id: user2.id)
+central_park = Territory.find_or_create_by!(name: 'Central Park') do |t|
+  t.lat = 40.785091
+  t.lng = -73.968285
+end
+central_park.assign_owner!(alice) unless central_park.claimed?
 
-# Create sample runs
-run1 = Run.create(user_id: user1.id, territory_id: territory1.id, duration: 30) # duration in minutes
-run2 = Run.create(user_id: user2.id, territory_id: territory2.id, duration: 45)
+golden_gate_park = Territory.find_or_create_by!(name: 'Golden Gate Park') do |t|
+  t.lat = 37.769420
+  t.lng = -122.486213
+end
+# Left unclaimed on purpose so you can try POST /api/territories/claim against it.
 
-# Create sample challenges
-challenge1 = Challenge.create(challenger_id: user1.id, territory_id: territory1.id, status: 'pending')
-challenge2 = Challenge.create(challenger_id: user2.id, territory_id: territory2.id, status: 'accepted')
+Run.find_or_create_by!(user: alice, territory: central_park) do |r|
+  r.duration = 30
+  r.verified = true
+  r.path = [
+    { lat: 40.7849, lng: -73.9684 },
+    { lat: 40.7851, lng: -73.9681 },
+    { lat: central_park.lat, lng: central_park.lng }
+  ]
+  r.distance = GpsValidator.total_distance_meters(r.path)
+  r.started_at = 1.hour.ago
+  r.ended_at = 30.minutes.ago
+end
+
+Challenge.find_or_create_by!(challenger: bob, territory: central_park) do |c|
+  c.status = :pending
+end
+
+puts "Seeded #{User.count} users, #{Territory.count} territories, #{Run.count} runs, #{Challenge.count} challenges."

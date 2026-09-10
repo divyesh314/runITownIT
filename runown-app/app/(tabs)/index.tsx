@@ -1,98 +1,134 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Alert, FlatList, Pressable, RefreshControl, StyleSheet } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { useAuth } from '@/context/auth-context';
+import { api, ApiError, type Territory } from '@/services/api';
+import { getCurrentPoint } from '@/services/gps';
 
-export default function HomeScreen() {
+export default function MapScreen() {
+  const { user } = useAuth();
+  const [territories, setTerritories] = useState<Territory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [claiming, setClaiming] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      setTerritories(await api.listTerritories());
+    } catch {
+      // Leave the previous list on screen; the pull-to-refresh spinner
+      // stopping is signal enough that something went wrong.
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
+
+  const onChallenge = async (territory: Territory) => {
+    try {
+      await api.createChallenge(territory.id);
+      Alert.alert('Challenge sent', `${territory.owner?.name} will see your challenge for ${territory.name}.`);
+    } catch (e) {
+      Alert.alert('Could not send challenge', e instanceof ApiError ? e.message : 'Something went wrong.');
+    }
+  };
+
+  const onClaim = async () => {
+    setClaiming(true);
+    try {
+      const point = await getCurrentPoint();
+      const result = await api.claimTerritory(point);
+      if ('error' in result) {
+        Alert.alert('Already owned', result.error);
+      } else {
+        Alert.alert('Territory claimed!', result.message);
+      }
+      load();
+    } catch (e) {
+      Alert.alert('Could not claim territory', e instanceof ApiError ? e.message : 'Check your location permissions and try again.');
+    } finally {
+      setClaiming(false);
+    }
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
+    <ThemedView style={styles.container}>
+      <ThemedView style={styles.header}>
+        <ThemedText type="title">Territories</ThemedText>
+        <ThemedText style={styles.subtitle}>
+          {user ? `Hey ${user.name}, here's the map so far.` : 'Zones near you'}
         </ThemedText>
       </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <FlatList
+        data={territories}
+        keyExtractor={(t) => String(t.id)}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
+        contentContainerStyle={styles.list}
+        ListEmptyComponent={
+          !loading ? <ThemedText style={styles.empty}>No territories yet - be the first to claim one!</ThemedText> : null
+        }
+        renderItem={({ item }) => (
+          <ThemedView style={styles.row}>
+            <ThemedView style={styles.rowText}>
+              <ThemedText type="defaultSemiBold">{item.name}</ThemedText>
+              <ThemedText style={styles.owner}>
+                {item.owner ? `Owned by ${item.owner.name}` : 'Unclaimed'}
+              </ThemedText>
+            </ThemedView>
+            {item.owner && item.owner.id !== user?.id && (
+              <Pressable onPress={() => onChallenge(item)}>
+                <ThemedText type="link">Challenge</ThemedText>
+              </Pressable>
+            )}
+          </ThemedView>
+        )}
+      />
+
+      <ThemedText
+        onPress={claiming ? undefined : onClaim}
+        style={[styles.claimButton, claiming && styles.claimButtonDisabled]}>
+        {claiming ? 'Locating you…' : '📍 Claim the zone I\'m standing in'}
+      </ThemedText>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: { flex: 1, paddingTop: 60 },
+  header: { paddingHorizontal: 20, marginBottom: 8 },
+  subtitle: { opacity: 0.7, marginTop: 4 },
+  list: { paddingHorizontal: 20, paddingBottom: 100 },
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#8884',
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
+  rowText: { flex: 1 },
+  owner: { opacity: 0.7, marginTop: 2 },
+  empty: { textAlign: 'center', marginTop: 40, opacity: 0.6 },
+  claimButton: {
     position: 'absolute',
+    bottom: 24,
+    left: 20,
+    right: 20,
+    backgroundColor: '#0a7ea4',
+    color: '#fff',
+    textAlign: 'center',
+    paddingVertical: 14,
+    borderRadius: 10,
+    fontWeight: '600',
+    overflow: 'hidden',
   },
+  claimButtonDisabled: { opacity: 0.6 },
 });
