@@ -1,0 +1,36 @@
+# Render reads this automatically if you create the service via
+# "New > Blueprint" and point it at this repo (root directory:
+# runown-backend). If you'd rather click through Render's UI instead, this
+# file is still useful as a checklist of exactly what to set by hand -
+# see CHALLENGES.md / README for the plain-English walkthrough.
+services:
+  - type: web
+    name: runown-backend
+    runtime: ruby
+    rootDir: runown-backend
+    buildCommand: "bundle install"
+    startCommand: "bundle exec rails db:prepare && bundle exec puma -C config/puma.rb"
+    healthCheckPath: /health
+    envVars:
+      - key: RAILS_ENV
+        value: production
+      - key: RACK_ENV
+        value: production
+      - key: RAILS_LOG_TO_STDOUT
+        value: "true"
+      - key: RAILS_SERVE_STATIC_FILES
+        value: "true"
+      - key: SECRET_KEY_BASE
+        generateValue: true # Render mints a random one for you - nothing to copy in
+      - key: RUNOWN_ALLOWED_ORIGINS
+        sync: false # e.g. https://runown-web.onrender.com
+      - key: RUNOWN_ALLOWED_HOSTS
+        sync: false # e.g. runown-backend.onrender.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: runown-db
+          property: connectionString
+
+databases:
+  - name: runown-db
+    plan: free

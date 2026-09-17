@@ -41,4 +41,18 @@ RSpec.describe 'RunOwn API', type: :request do
     post '/api/runs/start', params: { duration: 20 }
     expect(response).to have_http_status(:unauthorized)
   end
+
+  it 'rejects a claim that would require teleporting since the last one' do
+    post '/api/signup', params: { name: 'Speedy', email: 'speedy@example.com', password: 'password123' }
+    headers = { 'Authorization' => "Bearer #{json['token']}" }
+
+    post '/api/territories/claim', params: { lat: 43.4643, lng: -80.5204 }, headers: headers
+    expect(response).to have_http_status(:ok)
+
+    # Tokyo, immediately after claiming in Waterloo - no human covers that
+    # distance in zero seconds, so this must be rejected rather than trusted.
+    post '/api/territories/claim', params: { lat: 35.6762, lng: 139.6503 }, headers: headers
+    expect(response).to have_http_status(:unprocessable_entity)
+    expect(json['error']).to match(/too far|seconds between claims/)
+  end
 end

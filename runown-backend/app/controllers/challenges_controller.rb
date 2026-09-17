@@ -1,6 +1,13 @@
 class ChallengesController < ApplicationController
   before_action :authenticate_user!
   before_action :set_challenge, only: %i[show accept decline complete]
+  # `show` and `complete` used to be reachable by *any* logged-in user, not
+  # just the two people actually in the challenge - meaning a stranger could
+  # look up someone else's challenge by ID, or worse, call `complete` on it
+  # and hand the territory to whichever side they picked. Locked to
+  # participants only, matching what `index` already scopes to. See
+  # CHALLENGES.md.
+  before_action :require_participant!, only: %i[show complete]
 
   # GET /api/challenges
   def index
@@ -59,9 +66,17 @@ class ChallengesController < ApplicationController
     @challenge.territory.owner_id == current_user.id
   end
 
+  def participant?
+    @challenge.challenger_id == current_user.id || owner?
+  end
+
   def forbid_unless_owner!
     render json: { error: 'Only the current owner of the territory can respond to this challenge' },
            status: :forbidden
+  end
+
+  def require_participant!
+    render json: { error: 'You are not part of this challenge' }, status: :forbidden unless participant?
   end
 
   def challenge_params

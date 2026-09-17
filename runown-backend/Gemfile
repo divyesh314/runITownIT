@@ -16,6 +16,10 @@ gem 'devise', '~> 4.9'
 # Cross-origin requests from the mobile app + web dashboard
 gem 'rack-cors'
 
+# Throttles login/signup so a script can't brute-force passwords or spam
+# account creation (see CHALLENGES.md)
+gem 'rack-attack'
+
 # JSON rendering helpers
 gem 'jbuilder'
 

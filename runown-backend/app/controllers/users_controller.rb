@@ -12,8 +12,19 @@ class UsersController < ApplicationController
   end
 
   # GET /api/users/:id
+  # Your own record comes back in full (still minus password/token - see
+  # User#as_json). Anyone else's is trimmed to what's actually public
+  # elsewhere in the app (their name and territory count already show up on
+  # the leaderboard and on territories they own) - their email is not
+  # something every other logged-in user should be able to look up by ID.
   def show
-    render json: User.find(params[:id])
+    user = User.find(params[:id])
+
+    if current_user.id == user.id
+      render json: user
+    else
+      render json: { id: user.id, name: user.name, territories_count: user.territories.count }
+    end
   end
 
   # PATCH/PUT /api/users/:id - you can only ever edit your own profile
