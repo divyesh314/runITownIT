@@ -18,11 +18,15 @@ ENV RAILS_ENV=production \
     RAILS_LOG_TO_STDOUT=true \
     RAILS_SERVE_STATIC_FILES=true
 
-# Gemfile.lock has to exist and be committed before this build will work -
-# run `bundle install` locally first (see README). Copying only these two
-# files first, before the rest of the app, means Docker can cache this
-# layer and skip re-installing gems on every code change.
-COPY Gemfile Gemfile.lock ./
+# Only Gemfile is copied here (no Gemfile.lock - this repo doesn't commit
+# one, since generating it requires a working Ruby/bundler environment,
+# which wasn't available wherever this was last edited). `bundle install`
+# below resolves versions from the Gemfile's constraints and writes a fresh
+# Gemfile.lock inside the image on every build. That costs a bit of the
+# Docker layer-caching benefit you'd get from a committed lock file, but
+# means this Dockerfile builds correctly on any host with normal internet
+# access (like Render's build servers) without a local Ruby setup first.
+COPY Gemfile ./
 RUN bundle install --jobs 4 --retry 3
 
 COPY . .
