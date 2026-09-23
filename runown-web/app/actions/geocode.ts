@@ -1,17 +1,20 @@
 'use server';
 
-export type GeocodeResult =
-  | { ok: true; from: { label: string; lat: number; lng: number }; to: { label: string; lat: number; lng: number }; km: number }
-  | { ok: false; error: string };
+export type Place = { label: string; lat: number; lng: number };
 
-export type GeocodeFormState = GeocodeResult | { ok: null };
+export type RouteResult = {
+  from: Place;
+  to: Place;
+  km: number;
+  coordinates: [number, number][]; // GeoJSON order: [lng, lat] pairs
+  routed: boolean; // true = real walking route, false = straight-line fallback
+};
 
 const EARTH_RADIUS_KM = 6371;
 
 /**
- * Straight-line ("as the crow flies") distance, not a routed distance - this
- * feature is a quick estimate for now, not real GPS-tracked mileage. Mirrors
- * the haversine formula the Rails backend's GpsValidator already uses.
+ * Straight-line ("as the crow flies") distance - only used as a fallback
+ * when a real route can't be found (see routeBetween below).
  */
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const toRad = (deg: number) => (deg * Math.PI) / 180;
@@ -27,54 +30,85 @@ function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: num
 
 type NominatimHit = { lat: string; lon: string; display_name: string };
 
+const NOMINATIM_HEADERS = { 'User-Agent': 'RunOwn/1.0 (running app add-a-run feature)' };
+
 /**
- * Nominatim (OpenStreetMap's free geocoder) requires a descriptive
- * User-Agent and asks callers not to hammer it - this runs server-side (a
- * Server Action) specifically so that header can be set at all, which a
- * browser `fetch` would silently strip.
+ * Address autocomplete for the "from"/"to" fields - called on a debounced
+ * keystroke from AddressAutocomplete, so this asks Nominatim for a short
+ * list of candidates rather than committing to one result. Runs
+ * server-side so it can set the User-Agent header Nominatim's usage
+ * policy requires (a browser fetch would silently strip it).
  */
-async function geocodeOne(address: string): Promise<{ label: string; lat: number; lng: number } | null> {
+export async function searchAddresses(query: string): Promise<Place[]> {
+  const trimmed = query.trim();
+  if (trimmed.length < 3) return [];
+
   const url = new URL('https://nominatim.openstreetmap.org/search');
   url.searchParams.set('format', 'json');
-  url.searchParams.set('limit', '1');
-  url.searchParams.set('q', address);
+  url.searchParams.set('limit', '5');
+  url.searchParams.set('q', trimmed);
 
-  const res = await fetch(url, {
-    headers: { 'User-Agent': 'RunOwn/1.0 (running app add-a-run feature)' },
-    cache: 'no-store',
-  });
-  if (!res.ok) return null;
-
-  const hits = (await res.json()) as NominatimHit[];
-  const hit = hits[0];
-  if (!hit) return null;
-
-  return { label: hit.display_name, lat: parseFloat(hit.lat), lng: parseFloat(hit.lon) };
+  try {
+    const res = await fetch(url, { headers: NOMINATIM_HEADERS, cache: 'no-store' });
+    if (!res.ok) return [];
+    const hits = (await res.json()) as NominatimHit[];
+    return hits.map((h) => ({
+      label: h.display_name,
+      lat: parseFloat(h.lat),
+      lng: parseFloat(h.lon),
+    }));
+  } catch {
+    return [];
+  }
 }
 
-export async function calculateRunAction(
-  _prevState: GeocodeFormState,
-  formData: FormData,
-): Promise<GeocodeResult> {
-  const fromAddress = String(formData.get('from') ?? '').trim();
-  const toAddress = String(formData.get('to') ?? '').trim();
+type OsrmResponse = {
+  code: string;
+  routes?: { distance: number; geometry: { coordinates: [number, number][] } }[];
+};
 
-  if (!fromAddress || !toAddress) {
-    return { ok: false, error: 'Enter both a starting address and an ending address.' };
+/**
+ * Real street/path-level walking route between two already-geocoded
+ * points (the user picked both from the autocomplete dropdown, so no
+ * geocoding happens here - just routing). Uses openstreetmap.de's free,
+ * keyless public OSRM routing service (foot profile) - same "no signup"
+ * spirit as Nominatim above, just a different free OSM-backed service for
+ * a different job (routing needs a road/path network, not just a point
+ * lookup). Falls back to a straight-line distance if no route can be
+ * found - e.g. the two points aren't connected by any mapped footpath
+ * (opposite sides of an ocean), or the service is briefly unreachable -
+ * so the feature always returns *something* useful rather than failing.
+ */
+export async function routeBetween(from: Place, to: Place): Promise<RouteResult> {
+  const url = `https://routing.openstreetmap.de/routed-foot/route/v1/foot/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
+
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (res.ok) {
+      const data = (await res.json()) as OsrmResponse;
+      const route = data.routes?.[0];
+      if (data.code === 'Ok' && route) {
+        return {
+          from,
+          to,
+          km: route.distance / 1000,
+          coordinates: route.geometry.coordinates,
+          routed: true,
+        };
+      }
+    }
+  } catch {
+    // Falls through to the straight-line fallback below.
   }
 
-  // Sequential, not Promise.all: Nominatim's usage policy asks for roughly
-  // one request per second, not concurrent bursts.
-  const from = await geocodeOne(fromAddress);
-  if (!from) {
-    return { ok: false, error: `Couldn't find "${fromAddress}". Try a more specific address.` };
-  }
-
-  const to = await geocodeOne(toAddress);
-  if (!to) {
-    return { ok: false, error: `Couldn't find "${toAddress}". Try a more specific address.` };
-  }
-
-  const km = haversineKm(from, to);
-  return { ok: true, from, to, km };
+  return {
+    from,
+    to,
+    km: haversineKm(from, to),
+    coordinates: [
+      [from.lng, from.lat],
+      [to.lng, to.lat],
+    ],
+    routed: false,
+  };
 }
