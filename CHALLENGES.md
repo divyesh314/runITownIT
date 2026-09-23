@@ -127,6 +127,29 @@ Fixed: correct base image, native build deps for `pg`/`puma`, no bogus
 precompile step, migrations run automatically on container start via
 `rails db:prepare`.
 
+### 1.8 High — web dashboard was on a Next.js version with a known unauthenticated RCE
+
+**Where:** `runown-web/package.json` (`next: 16.0.0`)
+
+**The bug:** Vercel flagged this on first deploy ("Vulnerable version of
+Next.js detected"). It wasn't a false alarm: Next.js published two security
+releases after 16.0.0 shipped — one in May 2026 covering middleware/proxy
+bypass, SSRF, cache poisoning and XSS issues, and a more serious one in
+August 2026 fixing a critical AVIF-image and Windows path-traversal flaw
+that add up to unauthenticated remote code execution on affected servers.
+16.0.0 predates both.
+
+**The fix:** Bumped `next` (and `eslint-config-next`) to `16.3.3`, the
+patched release in the 16.x line, and ran `npm install` for real (unlike
+the backend, `registry.npmjs.org` is reachable from this sandbox, so this
+one could actually be installed, built, and lint-checked here rather than
+just syntax-checked). `npm audit` also turned up 9 unrelated vulnerabilities
+in transitive build-tooling dependencies (eslint/typescript-eslint's
+`brace-expansion`, `minimatch`, `picomatch`, plus `browserslist` and
+`js-yaml`) — none of them shipped in the production bundle, but
+`npm audit fix` cleared all of them with no breaking changes. `npm run
+build` and `npx eslint .` both verified clean afterward.
+
 ## 2. Lower-priority items left as documented, not fixed
 
 Being upfront about scope: these are real, but lower severity or bigger
