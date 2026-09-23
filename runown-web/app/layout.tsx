@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { Nav } from "@/components/nav";
 import "./globals.css";
 
-// Deliberately using the system font stack (see globals.css) rather than
-// next/font/google's Geist: fetching fonts from Google at build time isn't
-// reliable in every environment (corporate proxies, offline CI, sandboxes),
-// and a project this early doesn't need a custom typeface yet.
+// Fonts load via a plain <link>, not next/font/google: next/font fetches
+// and self-hosts the font file at *build* time, which isn't reliable in
+// every environment (corporate proxies, offline CI, sandboxes - this repo
+// has hit exactly that). A runtime <link> only ever needs to be reachable
+// in the visitor's browser, which is a much safer bet, at the cost of one
+// extra round trip on first load.
 
 export const metadata: Metadata = {
   title: "RunOwn — Run It. Own It.",
@@ -20,7 +22,22 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased bg-zinc-50 text-zinc-900 dark:bg-black dark:text-zinc-50">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/*
+          eslint-disable-next-line @next/next/no-page-custom-font --
+          this rule assumes a custom font <link> lives in a per-page
+          component; this one is in the *root* layout, so it already
+          applies to every route in the app, which is exactly what the
+          rule is trying to ensure.
+        */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="antialiased bg-background text-foreground">
         <Nav />
         {children}
       </body>

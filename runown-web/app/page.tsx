@@ -13,36 +13,39 @@ export default async function Home() {
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
       <section className="flex flex-col gap-6 py-12 text-center sm:text-left">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-          Claim territory by running through it.
+        <span className="mx-auto font-mono text-xs font-bold tracking-[0.14em] text-ember uppercase sm:mx-0">
+          Run. Claim. Defend.
+        </span>
+        <h1 className="font-display text-6xl leading-[0.94] tracking-wide text-balance sm:text-7xl">
+          Claim the map.
         </h1>
-        <p className="max-w-2xl text-lg text-zinc-600 dark:text-zinc-400 sm:mx-0 mx-auto">
+        <p className="mx-auto max-w-2xl text-lg text-dim sm:mx-0">
           RunOwn turns your city into a map of turf. Run through a zone to claim it, challenge
           whoever owns a zone you want, and see who&apos;s really covering the most ground.
         </p>
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-start justify-center">
           <Link
             href="/territories"
-            className="rounded-full bg-foreground px-6 py-3 text-center font-medium text-background hover:opacity-90"
+            className="rounded-full bg-ember px-6 py-3 text-center font-semibold text-ember-ink hover:opacity-90"
           >
             See the map
           </Link>
           <Link
             href="/leaderboard"
-            className="rounded-full border border-black/10 px-6 py-3 text-center font-medium hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/5"
+            className="rounded-full border-[1.5px] border-ember px-6 py-3 text-center font-semibold text-ember hover:bg-ember/10"
           >
             View leaderboard
           </Link>
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-4 border-t border-black/10 py-10 dark:border-white/10 sm:grid-cols-3">
+      <section className="grid grid-cols-1 gap-4 border-t border-hairline py-10 sm:grid-cols-3">
         <Stat label="Territories claimed" value={claimed} />
         <Stat label="Territories on the map" value={territories.length} />
         <Stat label="Players" value={players} />
       </section>
 
-      <section className="grid grid-cols-1 gap-8 border-t border-black/10 py-12 dark:border-white/10 sm:grid-cols-3">
+      <section className="grid grid-cols-1 gap-8 border-t border-hairline py-12 sm:grid-cols-3">
         <Step
           number={1}
           title="Run"
@@ -61,7 +64,7 @@ export default async function Home() {
       </section>
 
       {territories.length === 0 && (
-        <p className="rounded-lg border border-dashed border-black/15 p-4 text-sm text-zinc-500 dark:border-white/15">
+        <p className="rounded-lg border border-dashed border-hairline p-4 text-sm text-dim">
           Can&apos;t reach the RunOwn API right now, so live stats aren&apos;t shown. Start the
           backend (<code>runown-backend</code>) and refresh this page.
         </p>
@@ -72,9 +75,9 @@ export default async function Home() {
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl border border-black/10 p-6 text-center dark:border-white/10">
-      <div className="text-3xl font-bold">{value}</div>
-      <div className="mt-1 text-sm text-zinc-500">{label}</div>
+    <div className="rounded-xl border border-hairline bg-surface p-6 text-center">
+      <div className="font-mono text-3xl font-bold tabular-nums text-ember">{value}</div>
+      <div className="mt-1 text-sm text-dim">{label}</div>
     </div>
   );
 }
@@ -82,9 +85,9 @@ function Stat({ label, value }: { label: string; value: number }) {
 function Step({ number, title, body }: { number: number; title: string; body: string }) {
   return (
     <div>
-      <div className="mb-2 text-sm font-semibold text-zinc-500">Step {number}</div>
-      <h3 className="mb-2 text-xl font-semibold">{title}</h3>
-      <p className="text-zinc-600 dark:text-zinc-400">{body}</p>
+      <div className="mb-2 font-mono text-sm font-bold text-ember">0{number}</div>
+      <h3 className="mb-2 font-display text-2xl tracking-wide">{title}</h3>
+      <p className="text-dim">{body}</p>
     </div>
   );
 }

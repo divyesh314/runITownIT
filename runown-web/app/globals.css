@@ -1,26 +1,68 @@
 @import "tailwindcss";
 
+/* RunOwn's "conquest board" identity - same palette/type as the mobile app
+   concept direction, applied here to the actual web dashboard. Fonts are
+   loaded via a plain <link> in layout.tsx rather than next/font/google: see
+   the comment there for why (this repo has hit environments where Google
+   Fonts can't be fetched at *build* time - a runtime <link> sidesteps that
+   entirely and still gets self-hosted-quality caching in the browser). */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4f6f8;
+  --foreground: #10151d;
+  --surface: #ffffff;
+  --surface-2: #eaeef2;
+  --dim: #55636f;
+  --ember: #e44a26;
+  --ember-ink: #ffffff;
+  --cyan: #0e9c95;
+  --gold: #b9860b;
+  --hairline: rgba(10, 20, 30, 0.1);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-dim: var(--dim);
+  --color-ember: var(--ember);
+  --color-ember-ink: var(--ember-ink);
+  --color-cyan: var(--cyan);
+  --color-gold: var(--gold);
+  --color-hairline: var(--hairline);
+
+  --font-sans: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: "Bebas Neue", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0d1420;
+    --foreground: #edf1f5;
+    --surface: #161f2e;
+    --surface-2: #1e2a3d;
+    --dim: #8fa1b3;
+    --ember: #ff5c39;
+    --cyan: #33c7c0;
+    --gold: #f4b942;
+    --hairline: rgba(255, 255, 255, 0.08);
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+/* Hex conquest mark used next to the wordmark - a small nod to the app's
+   territory-hex visual language without dragging the whole hex-grid motif
+   into a plain data dashboard. */
+.hex-mark {
+  width: 14px;
+  height: 12px;
+  flex: none;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  background: var(--ember);
 }
