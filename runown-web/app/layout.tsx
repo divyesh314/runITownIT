@@ -23,6 +23,17 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Applies a remembered light/dark choice before first paint, so
+            there's no flash of the wrong theme. Keep STORAGE_KEY in sync
+            with components/theme-toggle.tsx. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var t=localStorage.getItem('runown-theme');" +
+              "if(t==='dark'||t==='light'){document.documentElement.setAttribute('data-theme',t);}" +
+              "}catch(e){}})();",
+          }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/*

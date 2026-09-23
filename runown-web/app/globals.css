@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
 
 /* RunOwn's "conquest board" identity - same palette/type as the mobile app
    concept direction, applied here to the actual web dashboard. Fonts are
@@ -36,8 +37,12 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
+/* Three states, not two: an explicit choice (the toggle below) stamps
+   data-theme on <html> and always wins; with no explicit choice, OS/browser
+   preference decides via prefers-color-scheme. `:not([data-theme="light"])`
+   keeps an explicit light pick winning over a dark OS setting. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --background: #0d1420;
     --foreground: #edf1f5;
     --surface: #161f2e;
@@ -48,6 +53,18 @@
     --gold: #f4b942;
     --hairline: rgba(255, 255, 255, 0.08);
   }
+}
+
+:root[data-theme="dark"] {
+  --background: #0d1420;
+  --foreground: #edf1f5;
+  --surface: #161f2e;
+  --surface-2: #1e2a3d;
+  --dim: #8fa1b3;
+  --ember: #ff5c39;
+  --cyan: #33c7c0;
+  --gold: #f4b942;
+  --hairline: rgba(255, 255, 255, 0.08);
 }
 
 body {
