@@ -71,7 +71,7 @@ export function AddressAutocomplete({ id, label, placeholder, onSelect }: Props)
   }
 
   return (
-    <div ref={containerRef} className="relative flex flex-1 flex-col gap-1.5">
+    <div ref={containerRef} className="relative z-[1000] flex flex-1 flex-col gap-1.5">
       <label htmlFor={id} className="font-mono text-xs font-bold tracking-wide text-dim uppercase">
         {label}
       </label>

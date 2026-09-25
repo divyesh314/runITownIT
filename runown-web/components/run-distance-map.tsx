@@ -3,10 +3,27 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import type { Map as LeafletMap, Marker, Polyline } from 'leaflet';
 import { AddressAutocomplete } from '@/components/address-autocomplete';
-import { routeBetween, type Place, type RouteResult } from '@/app/actions/geocode';
+import {
+  routeBetween,
+  getElevationProfile,
+  type Place,
+  type RouteOption,
+  type RouteResult,
+  type ElevationProfile,
+} from '@/app/actions/geocode';
 
 const START_COLOR = '#e44a26';
 const END_COLOR = '#b9860b';
+
+// Simple, pace-independent running-calorie estimate (calories burned per km
+// scales close to linearly with body weight for running - roughly
+// 1.036 kcal per kg per km is a commonly cited estimate). This is a UI/UX
+// stand-in: the real mobile app would use the runner's actual profile
+// weight and GPS-measured pace instead of this fixed default.
+const ASSUMED_WEIGHT_KG = 70;
+function estimateCalories(km: number): number {
+  return Math.round(km * ASSUMED_WEIGHT_KG * 1.036);
+}
 
 // Custom colored-dot markers instead of Leaflet's default pin icon: the
 // default marker image path breaks under Next.js/webpack bundling (a
@@ -24,15 +41,20 @@ function dotIcon(L: typeof import('leaflet'), color: string) {
 export function RunDistanceMap() {
   const [from, setFrom] = useState<Place | null>(null);
   const [to, setTo] = useState<Place | null>(null);
-  const [result, setResult] = useState<RouteResult | null>(null);
+  const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
+  const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
+  const [elevation, setElevation] = useState<ElevationProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRouting, startRouting] = useTransition();
+  const [isLoadingElevation, startElevation] = useTransition();
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const startMarkerRef = useRef<Marker | null>(null);
   const endMarkerRef = useRef<Marker | null>(null);
   const routeLineRef = useRef<Polyline | null>(null);
+
+  const selectedRoute: RouteOption | null = routeResult?.routes[selectedRouteIndex] ?? null;
 
   // Show the map as soon as either point is picked - not only after
   // Calculate - so the person sees their pin land immediately, the way the
@@ -96,13 +118,16 @@ export function RunDistanceMap() {
         routeLineRef.current = null;
       }
 
-      if (result) {
+      if (selectedRoute) {
         // GeoJSON coordinates come as [lng, lat]; Leaflet wants [lat, lng].
-        const points: [number, number][] = result.coordinates.map(([lng, lat]) => [lat, lng]);
+        const points: [number, number][] = selectedRoute.coordinates.map(([lng, lat]) => [
+          lat,
+          lng,
+        ]);
         routeLineRef.current = L.polyline(points, {
           color: START_COLOR,
           weight: 4,
-          ...(result.routed ? {} : { dashArray: '6 6' }),
+          ...(selectedRoute.routed ? {} : { dashArray: '6 6' }),
         }).addTo(map);
         map.fitBounds(routeLineRef.current.getBounds(), { padding: [32, 32] });
       } else if (from && to) {
@@ -119,7 +144,7 @@ export function RunDistanceMap() {
     return () => {
       cancelled = true;
     };
-  }, [showMap, from, to, result]);
+  }, [showMap, from, to, selectedRoute]);
 
   // Tear the map instance down when this component unmounts.
   useEffect(() => {
@@ -137,14 +162,24 @@ export function RunDistanceMap() {
   // calling setState from inside an effect body.
   function handleSelectFrom(place: Place) {
     setFrom(place);
-    setResult(null);
+    setRouteResult(null);
+    setElevation(null);
     setError(null);
   }
 
   function handleSelectTo(place: Place) {
     setTo(place);
-    setResult(null);
+    setRouteResult(null);
+    setElevation(null);
     setError(null);
+  }
+
+  function loadElevationFor(route: RouteOption) {
+    setElevation(null);
+    startElevation(async () => {
+      const profile = await getElevationProfile(route.coordinates);
+      setElevation(profile);
+    });
   }
 
   function handleCalculate() {
@@ -153,11 +188,19 @@ export function RunDistanceMap() {
     startRouting(async () => {
       try {
         const routed = await routeBetween(from, to);
-        setResult(routed);
+        setRouteResult(routed);
+        setSelectedRouteIndex(0);
+        loadElevationFor(routed.routes[0]);
       } catch {
         setError("Couldn't calculate a route between those two points. Try again.");
       }
     });
+  }
+
+  function handleSelectRoute(index: number) {
+    if (!routeResult) return;
+    setSelectedRouteIndex(index);
+    loadElevationFor(routeResult.routes[index]);
   }
 
   return (
@@ -191,14 +234,48 @@ export function RunDistanceMap() {
         </p>
       )}
 
-      {result && (
-        <div className="flex items-baseline gap-3 rounded-lg border border-hairline bg-surface-2 px-4 py-3">
-          <span className="font-mono text-4xl font-bold tabular-nums text-ember">
-            {result.km.toFixed(2)}
-          </span>
+      {routeResult && routeResult.routes.length > 1 && (
+        <div className="flex flex-col gap-2">
           <span className="font-mono text-xs font-bold tracking-wide text-dim uppercase">
-            kilometers {result.routed ? '(running route)' : '(straight-line — no route found here)'}
+            {routeResult.routes.length} routes found - pick one
           </span>
+          <div className="flex flex-wrap gap-2">
+            {routeResult.routes.map((route, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => handleSelectRoute(index)}
+                aria-pressed={index === selectedRouteIndex}
+                className={`rounded-full border-[1.5px] px-4 py-2 font-mono text-xs font-bold uppercase transition-colors ${
+                  index === selectedRouteIndex
+                    ? 'border-ember bg-ember text-ember-ink'
+                    : 'border-hairline text-dim hover:border-ember hover:text-ember'
+                }`}
+              >
+                Route {index + 1} · {route.km.toFixed(2)} km
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {selectedRoute && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <StatTile
+            value={selectedRoute.km.toFixed(2)}
+            unit="kilometers"
+            note={selectedRoute.routed ? 'running route' : 'straight-line — no route found here'}
+          />
+          <StatTile
+            value={isLoadingElevation ? '…' : elevation ? `+${elevation.gainMeters}` : '—'}
+            unit="meters"
+            note={isLoadingElevation ? 'checking elevation' : elevation ? 'elevation gain' : 'elevation unavailable'}
+          />
+          <StatTile
+            value={estimateCalories(selectedRoute.km).toString()}
+            unit="calories"
+            note={`est., ${ASSUMED_WEIGHT_KG}kg runner`}
+          />
         </div>
       )}
 
@@ -208,6 +285,20 @@ export function RunDistanceMap() {
           className="h-80 w-full overflow-hidden rounded-lg border border-hairline"
         />
       )}
+    </div>
+  );
+}
+
+function StatTile({ value, unit, note }: { value: string; unit: string; note: string }) {
+  return (
+    <div className="flex flex-col gap-1 rounded-lg border border-hairline bg-surface-2 px-4 py-3">
+      <div className="flex items-baseline gap-2">
+        <span className="font-mono text-3xl font-bold tabular-nums text-ember">{value}</span>
+        <span className="font-mono text-[0.65rem] font-bold tracking-wide text-dim uppercase">
+          {unit}
+        </span>
+      </div>
+      <span className="text-xs text-dim">{note}</span>
     </div>
   );
 }

@@ -2,12 +2,21 @@
 
 export type Place = { label: string; lat: number; lng: number };
 
-export type RouteResult = {
-  from: Place;
-  to: Place;
+export type RouteOption = {
   km: number;
   coordinates: [number, number][]; // GeoJSON order: [lng, lat] pairs
   routed: boolean; // true = real walking route, false = straight-line fallback
+};
+
+export type RouteResult = {
+  from: Place;
+  to: Place;
+  routes: RouteOption[]; // usually 1, sometimes several real alternatives from OSRM
+};
+
+export type ElevationProfile = {
+  gainMeters: number;
+  lossMeters: number;
 };
 
 const EARTH_RADIUS_KM = 6371;
@@ -68,33 +77,43 @@ type OsrmResponse = {
 };
 
 /**
- * Real street/path-level walking route between two already-geocoded
+ * Real street/path-level walking route(s) between two already-geocoded
  * points (the user picked both from the autocomplete dropdown, so no
  * geocoding happens here - just routing). Uses openstreetmap.de's free,
  * keyless public OSRM routing service (foot profile) - same "no signup"
  * spirit as Nominatim above, just a different free OSM-backed service for
  * a different job (routing needs a road/path network, not just a point
- * lookup). Falls back to a straight-line distance if no route can be
- * found - e.g. the two points aren't connected by any mapped footpath
- * (opposite sides of an ocean), or the service is briefly unreachable -
- * so the feature always returns *something* useful rather than failing.
+ * lookup).
+ *
+ * Asks OSRM for alternatives (`alternatives=true`): when the two points
+ * are connected by more than one reasonable path, OSRM returns several
+ * routes and the caller lets the person pick one, mirroring how a real
+ * mapping app offers route choices. Most short in-city trips only have one
+ * genuinely different path, so a single route is the common case - the
+ * UI only needs to show a picker when `routes.length > 1`.
+ *
+ * Falls back to a single straight-line "route" if no path can be found at
+ * all - e.g. the two points aren't connected by any mapped footpath
+ * (opposite sides of an ocean), or the service is briefly unreachable - so
+ * the feature always returns *something* useful rather than failing.
  */
 export async function routeBetween(from: Place, to: Place): Promise<RouteResult> {
-  const url = `https://routing.openstreetmap.de/routed-foot/route/v1/foot/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
+  const url = `https://routing.openstreetmap.de/routed-foot/route/v1/foot/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson&alternatives=true`;
 
   try {
     const res = await fetch(url, { cache: 'no-store' });
     if (res.ok) {
       const data = (await res.json()) as OsrmResponse;
-      const route = data.routes?.[0];
-      if (data.code === 'Ok' && route) {
-        return {
-          from,
-          to,
-          km: route.distance / 1000,
-          coordinates: route.geometry.coordinates,
-          routed: true,
-        };
+      if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+        const routes: RouteOption[] = data.routes
+          .map((route) => ({
+            km: route.distance / 1000,
+            coordinates: route.geometry.coordinates,
+            routed: true,
+          }))
+          // Shortest first - the sensible default selection.
+          .sort((a, b) => a.km - b.km);
+        return { from, to, routes };
       }
     }
   } catch {
@@ -104,11 +123,65 @@ export async function routeBetween(from: Place, to: Place): Promise<RouteResult>
   return {
     from,
     to,
-    km: haversineKm(from, to),
-    coordinates: [
-      [from.lng, from.lat],
-      [to.lng, to.lat],
+    routes: [
+      {
+        km: haversineKm(from, to),
+        coordinates: [
+          [from.lng, from.lat],
+          [to.lng, to.lat],
+        ],
+        routed: false,
+      },
     ],
-    routed: false,
   };
+}
+
+type ElevationHit = { latitude: number; longitude: number; elevation: number };
+
+/**
+ * Elevation gain/loss along a chosen route, via Open-Elevation - a free,
+ * keyless, open-source elevation lookup service (same "no signup" bar as
+ * the rest of this feature). Sampling down to at most 30 evenly-spaced
+ * points along the route keeps the request small: a full route can have
+ * hundreds of coordinate pairs, and Open-Elevation charges per point.
+ * Returns null (not thrown) if the service can't be reached, so a slow or
+ * unreachable elevation lookup never breaks the distance/route result -
+ * the UI just hides the elevation stat when this comes back empty.
+ */
+export async function getElevationProfile(
+  coordinates: [number, number][],
+): Promise<ElevationProfile | null> {
+  if (coordinates.length < 2) return null;
+
+  const MAX_SAMPLES = 30;
+  const step = Math.max(1, Math.floor(coordinates.length / MAX_SAMPLES));
+  const sampled = coordinates.filter((_, i) => i % step === 0);
+
+  try {
+    const res = await fetch('https://api.open-elevation.com/api/v1/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+      body: JSON.stringify({
+        // Open-Elevation wants {latitude, longitude}; our coordinates are [lng, lat].
+        locations: sampled.map(([lng, lat]) => ({ latitude: lat, longitude: lng })),
+      }),
+    });
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as { results?: ElevationHit[] };
+    const results = data.results;
+    if (!results || results.length < 2) return null;
+
+    let gain = 0;
+    let loss = 0;
+    for (let i = 1; i < results.length; i++) {
+      const delta = results[i].elevation - results[i - 1].elevation;
+      if (delta > 0) gain += delta;
+      else loss += -delta;
+    }
+    return { gainMeters: Math.round(gain), lossMeters: Math.round(loss) };
+  } catch {
+    return null;
+  }
 }
